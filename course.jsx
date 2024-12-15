@@ -1,448 +1,420 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import CourseLayout from "../layout/layout-course";
+import { FaCheckCircle, FaEdit, FaTrashAlt, FaDownload, FaPlayCircle, FaLock, FaClipboardList } from "react-icons/fa";
 import axios from "axios";
-import { FaCloudUploadAlt, FaTrash, FaArrowUp, FaUsers } from "react-icons/fa";
-import AdminLayout from "../layout/layout-admin";
+import { toast, ToastContainer } from "react-toastify";
 
-const UploadCourse = () => {
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [link, setLink] = useState("");
-  const [isLinkInputVisible, setIsLinkInputVisible] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
-  const [isCourseDropdownOpen, setIsCourseDropdownOpen] = useState(false);
-  const [isLevelDropdownOpen, setIsLevelDropdownOpen] = useState(false);
-  const [selectedCourse, setSelectedCourse] = useState("Pilih Course");
-  const [selectedLevel, setSelectedLevel] = useState("Pilih Level");
-  const [levels, setLevels] = useState(["Level 1", "Level 2", "Level 3"]);
-  const [selectedQuizCourse, setSelectedQuizCourse] = useState(null);
-  const [isQuizCourseDropdownOpen, setIsQuizCourseDropdownOpen] = useState(false);
-  const [selectedQuizNumber, setSelectedQuizNumber] = useState(null);
-  const [isQuizNumberDropdownOpen, setIsQuizNumberDropdownOpen] = useState(false);
-  const [numbers, setNumbers] = useState([1, 2, 3, 4, 5]);
-  const [setProgress] = useState(0); 
-  const [courseData, setCourseData] = useState([]); 
-
-  const handleFileUpload = (e) => setSelectedFile(e.target.files[0]);
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setDragOver(true);
-  };
-  const handleDragLeave = () => setDragOver(false);
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setDragOver(false);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      setSelectedFile(e.dataTransfer.files[0]);
-      e.dataTransfer.clearData();
-    }
-  };
-  const handleFileRemove = () => setSelectedFile(null);
-
-  const toggleCourseDropdown = () => setIsCourseDropdownOpen((prev) => !prev);
-  const toggleLevelDropdown = () => setIsLevelDropdownOpen((prev) => !prev);
-
-  const handleCourseSelect = (course) => {
-    setSelectedCourse(course);
-    setIsCourseDropdownOpen(false);
-  };
-
-  const handleLevelSelect = (level) => {
-    setSelectedLevel(level);
-    setIsLevelDropdownOpen(false); 
-  };
-
-  const handleAddLevel = () => {
-    const newLevelNumber = levels.length + 1;
-    const newLevel = `Level ${newLevelNumber}`;
-
-    setLevels([...levels, newLevel]);
-    setSelectedLevel(newLevel);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!selectedCourse || !selectedLevel || !(selectedFile || link)) {
-      alert("Silakan pilih Course, Level, dan unggah file atau masukkan link.");
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("course", selectedCourse);
-    formData.append("level", selectedLevel);
-
-    // If there's a selected file, append it
-    if (selectedFile) {
-      formData.append("file", selectedFile);
-    }
-
-    // If there's a link, append it
-    if (link) {
-      formData.append("link", link);
-    }
-
-    try {
-      // Send data to the backend using Axios
-      const response = await axios.post("/api/upload-course", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      if (response.status === 200) {
-        alert(`Course "${selectedCourse}" dengan "${selectedLevel}" berhasil diunggah!`);
-      } else {
-        alert("Terjadi kesalahan saat mengunggah course.");
-      }
-    } catch (error) {
-      alert("Terjadi kesalahan, coba lagi.");
-      console.error("Error submitting form:", error);
-    }
-  };
-
-  const handleRemoveLink = () => {
-    setLink(""); 
-  };
-
-  const toggleQuizCourseDropdown = () => {
-    setIsQuizCourseDropdownOpen(!isQuizCourseDropdownOpen);
-  };
-
-  const handleQuizCourseSelect = (course) => {
-    setSelectedQuizCourse(course);
-    setIsQuizCourseDropdownOpen(false); // Close the dropdown
-  };
-
-  const toggleQuizNumberDropdown = () => {
-    setIsQuizNumberDropdownOpen(!isQuizNumberDropdownOpen);
-  };
-
-  const handleQuizNumberSelect = (number) => {
-    setSelectedQuizNumber(number);
-    setIsQuizNumberDropdownOpen(false); // Close the dropdown
-  };
-
-  const addNewNumber = () => {
-    const nextNumber = numbers.length + 1; // Tentukan nomor berikutnya
-    if (!numbers.includes(nextNumber)) { // Cegah duplikasi nomor
-      setNumbers((prevNumbers) => [...prevNumbers, nextNumber]); // Tambahkan angka murni
-      setSelectedQuizNumber(`No. ${nextNumber}`); // Pilih nomor baru dengan format
-    }
-  };
-
-  const handleQuizSubmit = async () => {
-    if (!selectedQuizCourse || !selectedQuizNumber) {
-      alert("Silakan pilih course dan nomor quiz.");
-      return;
-    }
-
-    try {
-      const response = await axios.post("/api/quiz-submit", {
-        course: selectedQuizCourse,
-        quizNumber: selectedQuizNumber,
-      });
-
-      if (response.status === 200) {
-        alert("Quiz submitted successfully!");
-      } else {
-        alert("Terjadi kesalahan saat mengirim quiz.");
-      }
-    } catch (error) {
-      alert("Terjadi kesalahan saat mengirim quiz.");
-      console.error("Error submitting quiz:", error);
-    }
-  };
-
-  const progressBarColors = {
-    Multimedia: "bg-red-500",
-    Copywriter: "bg-yellow-500",
-    Web: "bg-green-500",
-    SEO: "bg-blue-500", // Changed to a unique color for SEO
-  };
+const CoursePage = () => {
+  const navigate = useNavigate();
+  const [videos, setVideos] = useState([]);
+  const [selectedVideo, setSelectedVideo] = useState(null);
+  const [clickedVideos, setClickedVideos] = useState([]);
+  const [quizEnabled, setQuizEnabled] = useState(false);
+  const [notes, setNotes] = useState([]);
+  const [newNote, setNewNote] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentNote, setCurrentNote] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [className, setClassName] = useState(""); 
+  const [level, setLevel] = useState("");
+  const token = localStorage.getItem("token");
+  const materialId = localStorage.getItem("material_id");
+  const { materialsId } = useParams();
+  
 
   useEffect(() => {
-    // Fetch course data from the backend when the component mounts
-    axios.get("http://localhost:5000/api/courses") // Replace with your backend API endpoint
-      .then((response) => {
-        setCourseData(response.data); // Assuming response contains an array of course objects
-      })
-      .catch((error) => {
-        console.error("Error fetching course data:", error);
-      });
+    if (!materialId) {
+      console.error("Material ID is missing from localStorage!");
+      return;
+    }
 
-    // Fetch progress data from the backend every 2 seconds (for example)
-    const interval = setInterval(() => {
-      axios.get("http://localhost:5000/api/progress") 
-        .then((response) => {
-          setProgress(response.data.progress); // Assuming the response has a 'progress' field
-        })
-        .catch((error) => {
-          console.error("Error fetching progress data:", error);
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        if (!token) {
+          throw new Error("Token is missing.");
+        }
+
+        const response = await axios.get(`/materials/${materialId}/video`, {
+          headers: {
+            "token": token,
+          },
         });
-    }, 2000);
 
-    // Clear the interval when component unmounts
-    return () => clearInterval(interval);
-  }, []);
+        const responseData = response.data;
 
+        setVideos(responseData.video);
+        setClassName(responseData.nama_kelas); 
+        setLevel(responseData.level); 
+
+      } catch (error) {
+        setError("Error fetching videos: " + (error.response?.data || error.message));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (materialId && token) {
+      fetchData();
+    }
+  }, [materialId, token]);
+
+  const fetchNotes = async () => {
+    try {
+      if (!materialId) {
+        console.error("Material ID is missing!");
+        return;
+      }
+
+      const response = await axios.get(`/materials/${materialId}/note`, {
+        headers: {
+          token: token,
+        },
+      });
+      setNotes(response.data);
+      console.log("Notes fetched from API:", response.data);
+    } catch (error) {
+      console.error("Error fetching notes:", error.response?.data || error.message);
+    }
+  };
+
+  const handleNoteSubmit = async () => {
+    if (!newNote.trim()) {
+      console.error("Note content is empty!");
+      return;
+    }
+  
+    if (!materialId) {
+      console.error("Material ID is missing!");
+      return;
+    }
+  
+    try {
+      const response = await axios.post( `/materials/${materialId}/note`,
+        { konten: newNote },
+        {
+          headers: {
+            token: token,
+          },
+        }
+      );
+  
+      console.log('Note submitted successfully:', response.data);
+      fetchNotes(); 
+  
+      setNewNote(""); 
+  
+    } catch (error) {
+      console.error('Error submitting note:', error.response?.data || error.message);
+    }
+  };
+  
+
+  const handleDeleteNote = async (noteId) => {
+    try {
+      const materialId = localStorage.getItem("material_id");
+      if (!materialId) {
+        console.error("Material ID is missing!");
+        return;
+      }
+
+      const response = await axios.delete(`/materials/${materialId}/note/${noteId}`, {
+        headers: {
+          token: token, 
+        },
+      });
+  
+      setNotes(notes.filter((note) => note.id !== noteId));
+      console.log(response.data.message);
+    } catch (error) {
+      console.error("Error deleting note:", error.response?.data || error.message);
+    }
+  };
+
+  const handleUpdateNote = async (note) => {
+    try {
+      const materialId = localStorage.getItem("material_id");
+      if (!materialId) {
+        console.error("Material ID is missing!");
+        return;
+      }
+  
+      const response = await axios.put(
+        `/materials/${materialId}/note/${note.id}`,  
+        { konten: note.konten },
+        {
+          headers: {
+            token: token,  
+          },
+        }
+      );
+      console.log("Updated note:", response.data);
+  
+      setNotes((prevNotes) => {
+        const updatedNotes = prevNotes.map((n) =>
+          n.id === note.id ? { ...n, konten: response.data.konten } : n
+        );
+        return updatedNotes;
+      });
+  
+      setIsEditing(false);
+      fetchNotes(); 
+    } catch (error) {
+      console.error("Error updating note:", error.response?.data || error.message);
+    }
+  };
+  
+  const handleEditClick = (note) => {
+    setIsEditing(true);
+    setCurrentNote(note);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+  };
+
+  const handleVideoClick = (video) => {
+    setSelectedVideo(video); 
+    if (!clickedVideos.includes(video.id)) {
+      setClickedVideos([...clickedVideos, video.id]); 
+    }
+  };
+
+  const handleQuiz = (materialsId) => {
+    if (quizEnabled) {
+        navigate(`/quiz/${materialsId}`); 
+    }
+  };
+
+  const handleDownload = async (noteId) => {
+    try {
+      const response = await axios.get(
+        `http://localhost:8000/materials/${materialsId}/note/${noteId}/download/pdf`,
+        {
+          headers: {
+            token: token,
+          },
+          responseType: "blob",
+        }
+      );
+      console.log("Download response:", response);
+
+      const fileURL = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = fileURL;
+      link.setAttribute("download", `note_${noteId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success("Note downloaded successfully!");
+    } catch (error) {
+      console.error("Error downloading note:", error.message);
+      toast.error("Failed to download note");
+    }
+  };
+
+
+  useEffect(() => {
+    if (materialId && token) {
+      fetchNotes(); 
+    }
+  }, [materialId, token]); 
+
+  useEffect(() => {
+    if (videos && videos.length > 0) {
+      setSelectedVideo(videos[0]);
+    }
+  }, [videos]);
+
+  useEffect(() => {
+    if (clickedVideos.length === videos.length) {
+      setQuizEnabled(true);
+    } else {
+      setQuizEnabled(false);
+    }
+  }, [clickedVideos, videos.length]);
+  
   return (
-    <AdminLayout>
-      <div className="relative bg-gradient-to-r from-customYellow1 to-customYellow2 rounded-bl-3xl shadow-lg px-10 py-16 w-full mt-0 mr-0 ml-6">
-        <div className="flex flex-col items-start space-y-4">
-          <h1 className="text-white text-5xl font-bold mb-12">Ayo upload course untuk siswa</h1>
-        </div>
-        <div className="absolute left-10 right-10 -bottom-20 grid grid-cols-4 gap-6">
-          {courseData.map((course, index) => (
-            <div key={index} className="p-4 bg-white shadow rounded-lg flex flex-col gap-3">
-              <div className="flex justify-between items-center">
-                <h3 className="text-md font-medium text-gray-700">Course {course.name}</h3>
-                <FaArrowUp className="text-gray-400" />
-              </div>
-              <div className="flex items-center space-x-2">
-                <p className="text-3xl font-bold">{course.enrolled}</p> {/* Number of students enrolled */}
-                <FaUsers className="text-gray-400" />
-              </div>
-              <p className="text-sm text-gray-500">{course.progress}%</p> {/* Progress Percentage */}
-              <div className="w-full bg-gray-200 rounded-full h-2.5">
-                <div
-                  className={`h-2.5 rounded-full ${progressBarColors[course.name]}`}
-                  style={{ width: `${course.progress}%` }} // Dynamic width based on progress
-                ></div>
+    <CourseLayout>
+      <div className="grid grid-cols-12 gap-6 px-8 py-6 mx-auto max-w-screen-xl">
+        <div className="col-span-12 md:col-span-4 flex flex-col h-full">
+          <div className="rounded-lg shadow-md bg-white p-4 flex flex-col h-full">
+            <div className="rounded-t-lg p-3 bg-primary flex items-center gap-2 text-secondary-dark min-h-[70px]">
+              <FaClipboardList size={24} />
+              <div>
+                <h2 className="font-bold text-lg">{className}</h2>
               </div>
             </div>
-          ))}
-        </div>
-      </div>
-      <div className="pt-28 px-8">
-        <h1 className="text-center text-4xl font-bold mb-12">UPLOAD COURSE</h1>
-        <div className="max-w-4xl mx-auto bg-white p-10 shadow-lg rounded-xl">
-          <form onSubmit={handleSubmit}>
-            <h2 className="text-2xl font-semibold text-center mb-8">UPLOAD FILE</h2>
-            <div
-              className={`border-2 border-dashed rounded-xl p-8 text-center relative ${dragOver ? "border-blue-500 bg-blue-100" : "border-gray-300"}`}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-            >
-              <FaCloudUploadAlt className="text-5xl text-gray-500 mb-4 mx-auto" />
-              <p className="text-gray-500 mb-6">Drag and Drop here</p>
-              <div className="flex justify-center gap-6">
-                <label htmlFor="fileInput" className="px-8 py-3 bg-customYellow2 text-white rounded-lg shadow-lg cursor-pointer hover:bg-yellow-600 transition duration-300">
-                  Select File
-                </label>
-                <button
-                  type="button"
-                  className="px-8 py-3 bg-customYellow2 text-white rounded-lg shadow-lg hover:bg-orange-600 transition duration-300"
-                  onClick={() => setIsLinkInputVisible(true)}
-                >
-                  Insert Link
-                </button>
-              </div>
-              <input id="fileInput" type="file" onChange={handleFileUpload} className="hidden" />
-            </div>
-            {selectedFile && (
-              <div className="flex items-center justify-between mt-6 p-6 bg-gray-100 rounded-lg">
-                <span className="text-sm text-gray-700">
-                  {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
-                </span>
-                <button type="button" onClick={handleFileRemove} className="text-red-500">
-                  <FaTrash />
-                </button>
-              </div>
-            )}
-            {isLinkInputVisible && (
-              <div className="mt-8 relative">
-                <input
-                  type="text"
-                  value={link}
-                  onChange={(e) => setLink(e.target.value)}
-                  placeholder="Masukkan URL Course (Optional)"
-                  className="w-full border border-gray-300 rounded-lg p-4 text-sm"
-                />
-                {link && (
-                  <button
-                    type="button"
-                    onClick={handleRemoveLink}
-                    className="absolute top-6 right-6 text-red-500"
-                  >
-                    <FaTrash />
-                  </button>
-                )}
-              </div>
-            )}
-            <div className="mt-8">
-              <input
-                type="text"
-                placeholder="Masukkan Judul Course"
-                className="w-full border-2 border-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary text-sm rounded-lg p-4"
-                required
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-6 mt-6 justify-items-center">
-              {/* Course Dropdown */}
-              <div className="relative">
-                <button
-                  type="button"
-                  className="w-64 bg-white border border-black rounded-md p-4 text-lg flex justify-between items-center cursor-pointer"
-                  onClick={toggleCourseDropdown}
-                >
-                  {selectedCourse || "Courses"} <span className="ml-2 text-lg">▼</span>
-                </button>
-                {isCourseDropdownOpen && (
-                  <div className="absolute mt-2 bg-white border border-gray-300 rounded-md shadow-lg w-64 z-10">
-                    {["Multimedia", "Copywriter", "Web", "SEO"].map((course, index) => (
-                      <div
-                        key={index}
-                        className="p-4 text-lg text-center cursor-pointer hover:bg-gray-100 border-b last:border-b-0"
-                        onClick={() => handleCourseSelect(course)}
-                      >
-                        {course}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
 
-              {/* Level Dropdown */}
-              <div className="relative">
-                <button
-                  type="button"
-                  className="w-64 bg-white border border-black rounded-md p-4 text-lg flex justify-between items-center cursor-pointer"
-                  onClick={toggleLevelDropdown}
-                >
-                  {selectedLevel || "Level"} <span className="ml-2 text-lg">▼</span>
-                </button>
-                {isLevelDropdownOpen && (
-                  <div className="absolute mt-2 bg-white border border-gray-300 rounded-md shadow-lg w-64 z-10">
-                    {levels.map((level, index) => (
-                      <div
-                        key={index}
-                        className="p-4 text-lg text-center cursor-pointer hover:bg-gray-100 border-b last:border-b-0"
-                        onClick={() => handleLevelSelect(level)}
-                      >
-                        {level}
-                      </div>
-                    ))}
-                    <div
-                      className="p-4 text-lg text-center cursor-pointer hover:bg-gray-100 text-customYellow2 font-bold"
-                      onClick={handleAddLevel}
+            <div className="flex-1 overflow-y-auto mt-4">
+              {videos && videos.length > 0 ? (
+                <ul className="space-y-3"> {/* Menambahkan space-y-3 untuk jarak antar elemen */}
+                  {videos.map((video) => (
+                    <li
+                      key={video.id}
+                      className="flex items-center justify-between p-3 min-h-[80px] rounded-md border border-primary bg-white hover:shadow-lg"
                     >
-                      Add Level
+                      <div
+                        className="flex items-center gap-3 cursor-pointer"
+                        onClick={() => handleVideoClick(video)}
+                      >
+                        <FaPlayCircle className="text-secondary-dark" size={20} />
+                        <span className="text-secondary-dark font-medium">{video.judul_video}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {clickedVideos.includes(video.id) ? (
+                          <FaCheckCircle className="text-complementary-blue" />
+                        ) : (
+                          <FaLock className="text-gray-500" />
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-secondary-dark text-center">No videos available.</p>
+              )}
+            </div>
+            <div className="flex-none flex flex-row mt-auto gap-3">
+              <button
+                onClick={() => handleQuiz(materialId)}
+                className={`w-1/2 py-3 font-semibold text-white rounded-md hover:bg-primary-hover ${
+                  quizEnabled ? "" : "cursor-not-allowed opacity-50"
+                }`}
+                style={{ backgroundColor: "#FFB500" }}
+                disabled={!quizEnabled}
+              >
+                Quiz
+              </button>
+              <button
+                className="w-1/2 py-3 bg-secondary-light text-black font-bold rounded-md cursor-not-allowed flex items-center justify-center"
+                disabled
+              >
+                Level
+                <FaLock className="ml-2 text-black" />
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="col-span-12 md:col-span-8 flex flex-col min-h-[450px]">
+          <div className="bg-white rounded-lg shadow-md overflow-hidden flex-1">
+            {selectedVideo && selectedVideo.jalur_file ? (
+              <iframe
+                width="100%"
+                height="100%"
+                src={
+                  selectedVideo.jalur_file.includes("youtu.be")
+                    ? `https://www.youtube.com/embed/${selectedVideo.jalur_file.split('/').pop().split('?')[0]}`
+                    : selectedVideo.jalur_file
+                }
+                title="Video Player"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allowFullScreen
+              />
+            ) : (
+              <p className="text-center text-gray-500">Video tidak tersedia.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="col-span-12 md:col-span-4 mt-4">
+          <div className="bg-white rounded-lg p-4 shadow-lg border-t-4 border-primary">
+            <h3 className="font-bold text-lg text-center text-black mb-4">Catatan Tersimpan</h3>
+            <ul className="space-y-4">
+              {notes.map((note, index) => (
+                <li
+                  key={note.id}
+                  className="bg-white border border-primary rounded-lg p-4 shadow-sm"
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="font-bold text-black text-lg">{index + 1}.</span>
+                    <div className="flex flex-col justify-center">
+                      <h4 className="font-semibold text-sm text-black mb-1 text-center">{note.title}</h4>
+                      <p className="text-sm text-secondary-dark mb-1 text-justify">{note.konten}</p>
                     </div>
                   </div>
-                )}
+                  <div className="flex items-center justify-end gap-4 mt-3">
+                     <FaDownload
+                        onClick={() => handleDownload(note.id)}
+                        className="text-black hover:text-primary-hover cursor-pointer"
+                      />
+                    <FaEdit
+                      onClick={() => handleEditClick(note)}
+                      className="text-black hover:text-primary-hover cursor-pointer"
+                    />
+                    <FaTrashAlt
+                      onClick={() => handleDeleteNote(note.id)}
+                      className="text-black hover:text-primary-hover cursor-pointer"
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+        {isEditing && (
+          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex justify-center items-center">
+            <div className="bg-white p-4 rounded-lg">
+              <h2 className="text-xl mb-4 text-black">Edit Catatan</h2>
+              <textarea
+                value={currentNote.konten}
+                onChange={(e) => setCurrentNote({ ...currentNote, konten: e.target.value })}
+                className="border p-2 w-full mb-4"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleUpdateNote(currentNote)}
+                  className="bg-primary text-white py-2 px-4 rounded hover:bg-primary-hover"
+                >
+                  Simpan
+                </button>
+                <button
+                  onClick={handleCancelEdit}
+                  className="bg-secondary-light py-2 px-4 rounded hover:bg-secondary-dark hover:text-white"
+                >
+                  Batal
+                </button>
               </div>
             </div>
-            <button
-              type="submit"
-                className="mt-12 px-8 py-3 bg-white text-customYellow2 text-lg rounded-md border-2 border-customYellow1 hover:bg-customYellow1 hover:text-white transition duration-300 mx-auto block"
+          </div>
+        )}
+        <div className="col-span-12 md:col-span-8 mt-4">
+          <div className="bg-white rounded-lg shadow-md p-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <FaEdit className="text-customYellow1 text-2xl" />
+              <span className="font-semibold text-lg text-black">Catatan</span>
+            </div>
+
+            <div className="w-full h-0.5 bg-primary"></div>
+
+            <textarea
+              className="w-full p-4 border border-primary rounded-md focus:outline-none placeholder-gray-500"
+              placeholder="Masukkan Catatan anda disini"
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
+              rows={5}
+            ></textarea>
+
+            <div className="flex justify-end mt-4">
+              <button
+                onClick={handleNoteSubmit}
+                className="py-2 px-6 bg-primary text-black  font-bold rounded-md hover:bg-primary-hover transition"
               >
                 Submit
-            </button>
-            </form>
+              </button>
             </div>
-            <div className="pt-32 px-8">
-              <div className="max-w-4xl mx-auto bg-white p-10 shadow-lg rounded-xl">
-                <form onSubmit={handleQuizSubmit}>
-                  <h2 className="text-2xl font-semibold text-center mb-8">UPLOAD QUIZ</h2>
-                    <div className="grid grid-cols-2 gap-6">
-                      {/* Question Section */}
-                        <div>
-                          <h3 className="text-xl font-bold mb-4 text-customYellow2">Pertanyaan</h3>
-                            <textarea
-                              placeholder="Masukkan pertanyaan"
-                              className="w-full border border-gray-300 rounded-lg p-4 text-sm h-32 resize-none"
-                              required
-                            ></textarea>
-                        </div>
-                        {/* Answer Section */}
-                        <div>
-                          <h3 className="text-xl font-bold mb-4 text-customYellow2">Jawaban</h3>
-                          <div className="space-y-3">
-                          {[1, 2, 3, 4].map((option, index) => (
-                          <div key={index} className="flex items-center gap-2">
-                          <input type="radio" name="answer" value={`Option ${option}`} required />
-                            <input
-                              type="text"
-                              placeholder="Masukkan jawaban"
-                              className="flex-1 border border-gray-300 rounded-lg p-2 text-sm"
-                              required
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                <div className="grid grid-cols-2 gap-6 mt-6 justify-items-center">
-                {/* Course Dropdown */}
-                <div className="relative">
-                  <button
-                    type="button"
-                    className="w-64 bg-white border border-black rounded-md p-4 text-lg flex justify-between items-center cursor-pointer"
-                    onClick={toggleQuizCourseDropdown}
-                  >
-                    {selectedQuizCourse || "Courses"} <span className="ml-2 text-lg">▼</span>
-                  </button>
-                  {isQuizCourseDropdownOpen && (
-                    <div className="absolute mt-2 bg-white border border-gray-300 rounded-md shadow-lg w-64 z-10">
-                      {["Multimedia", "Copywriter", "Web", "SEO"].map((course, index) => (
-                        <div
-                          key={index}
-                          className="p-4 text-lg text-center cursor-pointer hover:bg-gray-100 border-b last:border-b-0"
-                          onClick={() => handleQuizCourseSelect(course)}
-                        >
-                          {course}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Number Dropdown */}
-                <div className="relative">
-                  <button
-                    type="button"
-                    className="w-64 bg-white border border-black rounded-md p-4 text-lg flex justify-between items-center cursor-pointer"
-                    onClick={toggleQuizNumberDropdown}
-                  >
-                    {selectedQuizNumber || "Nomor"} <span className="ml-2 text-lg">▼</span>
-                  </button>
-                  {isQuizNumberDropdownOpen && (
-                    <div className="absolute mt-2 bg-white border border-gray-300 rounded-md shadow-lg w-64 z-10">
-                      {numbers.map((number, index) => (
-                        <div
-                          key={index}
-                          className="p-4 text-lg text-center cursor-pointer hover:bg-gray-100 border-b last:border-b-0"
-                          onClick={() => handleQuizNumberSelect(`No. ${number}`)}
-                        >
-                          No. {number}
-                        </div>
-                      ))}
-                      <div
-                        className="p-4 text-lg text-center cursor-pointer hover:bg-gray-100 text-customYellow2 font-bold"
-                        onClick={addNewNumber}
-                      >
-                        Tambah Nomor
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Submit Button */}
-                <div className="col-span-2">
-                  <button
-                    type="button"
-                    className="mt-12 px-8 py-3 bg-white text-customYellow2 text-lg rounded-md border-2 border-customYellow1 hover:bg-customYellow1 hover:text-white transition duration-300 mx-auto block"
-                    onClick={handleQuizSubmit}
-                  >
-                    Submit
-                  </button>
-                </div>
-              </div>
-            </form>
           </div>
         </div>
       </div>
-    </AdminLayout>
+    </CourseLayout>
   );
 };
-export default UploadCourse;
+
+export default CoursePage;
