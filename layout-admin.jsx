@@ -1,45 +1,24 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
-import {
-  FaBars,
-  FaTimes,
-  FaUserCog,
-  FaSignOutAlt,
-  FaChalkboardTeacher,
-  FaUserFriends,
-  FaCommentDots,
-  FaChevronRight,
-} from "react-icons/fa";
+import { FaKey, FaChevronDown, FaBars, FaTimes, FaUserCog, FaSignOutAlt, FaChalkboardTeacher, FaUserFriends, FaCommentDots, FaChevronRight } from "react-icons/fa";
 import { BsBell } from "react-icons/bs";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import logoImage from "../assets/logo.png"; // Path logo
-import profileImage from "../assets/profile.jpg"; // Path profil image
+import logoImage from "../assets/logo.png"; 
+import profileImage from "../assets/profile.jpg"; 
 
 const AdminLayout = ({ children }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLogoutClicked, setIsLogoutClicked] = useState(false);
-  const [Admin, setAdmin] = useState("");
+  const [Admin, setAdmin] = useState(""); 
 
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    const fetchAdminData = async () => {
-      try {
-        const response = await axios.get("http://localhost:5000/api/admin", {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`, // Tambahkan token jika diperlukan
-          },
-        });
-        setAdmin(response.data.name); // Asumsi response berisi { name: "Nama Admin" }
-      } catch (error) {
-        console.error("Gagal mengambil data admin:", error);
-        setAdmin("Admin"); // Fallback jika gagal
-      }
-    };
-
-    fetchAdminData();
+    const username = localStorage.getItem("username");
+    if (username) {
+      setAdmin(username);
+    }
   }, []);
 
   const toggleDropdown = () => setIsDropdownOpen(!isDropdownOpen);
@@ -49,20 +28,21 @@ const AdminLayout = ({ children }) => {
     setIsLogoutClicked(true);
     setTimeout(() => {
       localStorage.removeItem("userLoggedIn");
+      localStorage.removeItem("username"); 
       navigate("/login-admin");
-    }, 200); // Delay sedikit agar animasi terlihat
+    }, 200); 
   };
 
   const menuItems = [
-    { id: 1, name: "User", icon: <FaUserFriends />, path: "/user" },
-    { id: 2, name: "Courses", icon: <FaChalkboardTeacher />, path: "/course" },
-    { id: 3, name: "Settings", icon: <FaUserCog />, path: "/settings" },
-    { id: 4, name: "Feedback", icon: <FaCommentDots />, path: "/feedback" },
+    { id: 1, name: "User", icon: <FaUserFriends />, path: "/admin-user" },
+    { id: 2, name: "Courses", icon: <FaChalkboardTeacher />, path: "/admin-course" },
+    { id: 3, name: "Settings", icon: <FaUserCog />, path: "/admin-settings" },
+    { id: 4, name: "Feedback", icon: <FaCommentDots />, path: "/admin-feedback" },
+    { id: 5, name: "Help", icon: <FaCommentDots />, path: "/admin-help" },
   ];
 
   return (
     <div className="flex flex-col">
-      {/* Navbar */}
       <div className="flex flex-wrap justify-between items-center px-4 sm:px-6 md:px-10 lg:px-12 xl:px-16 2xl:px-20 py-4 bg-white shadow-md">
         <div className="flex items-center">
           <img
@@ -73,10 +53,10 @@ const AdminLayout = ({ children }) => {
         </div>
         <div className="flex items-center gap-4 sm:gap-6 md:gap-8 lg:gap-10 xl:gap-12 pr-4 sm:pr-6 md:pr-10 lg:pr-12 xl:pr-16">
           <div className="relative mr-4">
-            <button className="text-secondary-dark relative">
+            {/* <button className="text-secondary-dark relative">
               <BsBell size={20} />
               <div className="absolute top-0 right-0 bg-red-500 rounded-full w-3 h-3"></div>
-            </button>
+            </button> */}
           </div>
           <div className="relative">
             <button
@@ -88,16 +68,31 @@ const AdminLayout = ({ children }) => {
                 alt="Profile"
                 className="w-8 sm:w-10 md:w-12 lg:w-14 xl:w-16 2xl:w-16 h-8 sm:h-10 md:h-12 lg:h-14 xl:h-16 2xl:h-16 rounded-full border border-primary"
               />
-              <div className="hidden sm:flex flex-col items-start ml-2">
-                {/* Menampilkan nama pengguna dari state */}
-                <span className="text-sm font-medium text-primary-dark">
-                  {Admin || "Admin"}
-                </span>
-                <span className="text-xs text-secondary-dark">Admin</span>
+              <div className="hidden sm:flex flex-row items-center ml-2">
+                <div className="flex flex-col items-start">
+                  <span className="text-sm font-medium text-primary-dark">
+                    {Admin || "Admin"}
+                  </span>
+                  <span className="text-xs text-secondary-dark">Admin</span>
+                </div>
+                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 ml-2">
+                  <FaChevronDown size={12} className="text-secondary-dark" />
+                </div>
               </div>
             </button>
-          </div>
-          {/* Hamburger Icon */}
+           {isDropdownOpen && (
+              <div className="absolute right-0 mt-3 w-52 md:w-56 lg:w-60 xl:w-64 2xl:w-72 bg-white shadow-lg rounded-lg border border-primary z-10">
+                                  
+              <div
+                className="flex items-center gap-2 py-2 px-4 hover:bg-secondary-light cursor-pointer text-secondary-dark border-b border-gray-300"
+                onClick={() => navigate("/forgot-pw")}
+              >
+                <FaKey size={14} className="text-red-500" />
+                Change Password
+              </div>
+            </div>
+          )}
+          </div>               
           <div className="sm:hidden">
             <button onClick={toggleSidebar} className="text-secondary-dark">
               {isSidebarOpen ? <FaTimes size={20} /> : <FaBars size={20} />}
@@ -157,8 +152,6 @@ const AdminLayout = ({ children }) => {
               ))}
             </ul>
           </nav>
-
-          {/* Logout Button */}
           <div className="px-4 py-4 border-t border-secondary-light">
             <button
               onClick={handleLogout}
